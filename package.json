@@ -1,0 +1,11 @@
+{
+  "name": "buy-xiaomi",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:shunyue1320/buy-xiaomi.git",
+  "author": "shunyue1320 <1277952981@qq.com>",
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer": "^8.0.0"
+  }
+}

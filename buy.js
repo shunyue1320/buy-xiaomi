@@ -85,6 +85,7 @@ async function refreshBuy() {
 	try {
 		await sleep(config.thetime * 1000 - Date.now())
 		await page.goto(config.buyPage)
+    await page.waitForNavigation()
 		await page.waitForSelector('div.buy-option', { timeout: 2000 })
 		for (let i = 0; i < buyRule.length; i++) {
 			const GB = await page.waitForSelector(buyRule[i].GB)

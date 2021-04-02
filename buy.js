@@ -2,35 +2,39 @@ const puppeteer = require('puppeteer');
 
 const config = {
   user: '****', // mi user name
-  password: '*****', // mi password
-  buyPage: 'https://www.mi.com/buy/detail?product_id=13544', // k40 buy page url
-  // buyPage: 'https://www.mi.com/buy/detail?product_id=13272', // mi11 buy page url
-  buyStartTime: new Date("2021-04-02 10:00").getTime()  // buy start Time
+  password: '****', // mi password
+  // buyPage: 'https://www.mi.com/buy/detail?product_id=13544', // k40 buy page url
+  buyPage: 'https://www.mi.com/buy/detail?product_id=13272', // mi11 buy page url
+  buyStartTime: new Date("2021-04-02 23:53").getTime()  // buy start Time
 };
 
 // buy rule：越前面的越优先购买，前面的没货才购买后面
 const buyRule = [
   {
     // 8GB+128GB + 幻境
-    GB: '#app > div.mi-detail > div > div > div > div.product-box.container > div.product-con > div.buy-option > div:nth-child(1) > div > ul > li:nth-child(1) > a',
-    color: '#app > div.mi-detail > div > div > div > div.product-box.container > div.product-con > div.buy-option > div:nth-child(2) > div > ul > li:nth-child(3) > a'
+    GB: { type: 1, index: 1 },  // 选择版本为第一栏 type = 1, index = 1 选择版本中的第 1 个型号 
+    color: { type: 2, index: 3 } // 选择颜色为第二栏 type = 2, index = 3 选择版本中的第 3 个颜色
   },
   {
     // 8GB+128GB + 晴雪
-    GB: '#app > div.mi-detail > div > div > div > div.product-box.container > div.product-con > div.buy-option > div:nth-child(1) > div > ul > li:nth-child(1) > a',
-    color: '#app > div.mi-detail > div > div > div > div.product-box.container > div.product-con > div.buy-option > div:nth-child(2) > div > ul > li:nth-child(2) > a'
+    GB: { type: 1, index: 1 },
+    color: { type: 2, index: 2 }
   },
   {
     // 8GB+256GB + 幻境
-    GB: '#app > div.mi-detail > div > div > div > div.product-box.container > div.product-con > div.buy-option > div:nth-child(1) > div > ul > li:nth-child(3) > a',
-    color: '#app > div.mi-detail > div > div > div > div.product-box.container > div.product-con > div.buy-option > div:nth-child(2) > div > ul > li:nth-child(3) > a'
+    GB: { type: 1, index: 3 },
+    color: { type: 2, index: 3 }
   },
   {
     // 8GB+256GB + 晴雪
-    GB: '#app > div.mi-detail > div > div > div > div.product-box.container > div.product-con > div.buy-option > div:nth-child(1) > div > ul > li:nth-child(3) > a',
-    color: '#app > div.mi-detail > div > div > div > div.product-box.container > div.product-con > div.buy-option > div:nth-child(2) > div > ul > li:nth-child(2) > a'
+    GB: { type: 1, index: 3 },
+    color: { type: 2, index: 2 }
   }
 ];
+
+function createSelector(type, index) {
+  return `#app > div.mi-detail > div > div > div > div.product-box.container > div.product-con > div.buy-option > div:nth-child(${type}) > div > ul > li:nth-child(${index}) > a'`
+}
 
 // 加入购物车选择器
 const btnPrimary = '#app > div.mi-detail > div > div > div > div.product-box.container > div.product-con > div.btn-box > div.sale-btn > a';
@@ -66,7 +70,7 @@ const btnPrimary = '#app > div.mi-detail > div > div > div > div.product-box.con
   }
 
   // panic buying core code
-  await refreshBuy() // 1. 真实开抢逻辑
+  await refreshBuy(page) // 1. 真实开抢逻辑
   // await page.waitForSelector(btnPrimary, { timeout: 2000 }) // 2. 模拟请打开这里
 
   await page.click(btnPrimary)
@@ -75,31 +79,53 @@ const btnPrimary = '#app > div.mi-detail > div > div > div > div.product-box.con
   await page.click("#J_goCheckout")
 })();
 
-function sleep(ms) {
-  if (ms < 0) { ms = 0 }
+function sleep(ms, type) {
+  if (ms < 0) return true
+  if (type) {
+    const timer = setInterval(() => {
+      const resMs = config.buyStartTime - Date.now()
+      if (resMs < 0) {
+        clearInterval(timer)
+      } else {
+        console.log(`${resMs}ms 后开启抢单`)
+      }
+    }, 1000)
+  }
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-async function refreshBuy() {
-  try {
-    await sleep(config.thetime * 1000 - Date.now())
+async function refreshBuy(page) {
+  // try {
+    await sleep(config.buyStartTime - Date.now(), true)
+    console.log("开启抢单")
     await page.goto(config.buyPage)
-    await page.waitForNavigation()
-    await page.waitForSelector('div.buy-option', { timeout: 2000 })
+    // await page.waitForNavigation()
+    // await page.waitForSelector('div.buy-option', { timeout: 2000 })
     for (let i = 0; i < buyRule.length; i++) {
-      const GB = await page.waitForSelector(buyRule[i].GB)
-      const color = await page.waitForSelector(buyRule[i].color)
-      GB.click()
-      color.click()
+      const { GB, color } = buyRule[i]
+      console.log("1111111:::", createSelector(GB.type, GB.index))
+      console.log("1111111:::", createSelector(color.type, color.index))
+      // const aaa = createSelector(GB.type, GB.index)
+      // const bbb = createSelector(color.type, color.index)
+      await page.evaluate(({ createSelector, buyRuleItem })=>{
+        const { GB, color } = buyRuleItem
+        document.querySelector(createSelector(GB.type, GB.index)).click()
+        document.querySelector(createSelector(color.type, color.index)).click()
+      }, {createSelector, buyRuleItem: buyRule[i]})
+      // const GBNode = await page.waitForSelector(createSelector(GB.type, GB.index))
+      // const colorNode = await page.waitForSelector(createSelector(color.type, color.index))
+      // GBNode.click()
+      // colorNode.click()
       try {
         await page.waitForSelector(btnPrimary, { timeout: 2000 })
+        console.log("抢单成功")
         return
       } catch (e) {
         continue;
       }
     }
     await page.waitForSelector(btnPrimary, { timeout: 2000 })
-  } catch (e) {
-    await refreshBuy()
-  }
+  // } catch (e) {
+  //   await refreshBuy()
+  // }
 }

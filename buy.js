@@ -1,11 +1,11 @@
 const puppeteer = require('puppeteer');
 
 const config = {
-  user: '****', // mi user name
-  password: '****', // mi password
+  user: '***', // mi user name
+  password: '***', // mi password
   // buyPage: 'https://www.mi.com/buy/detail?product_id=13544', // k40 buy page url
   buyPage: 'https://www.mi.com/buy/detail?product_id=13272', // mi11 buy page url
-  buyStartTime: new Date("2021-04-02 23:53").getTime()  // buy start Time
+  buyStartTime: new Date("2021-04-03 00:52").getTime()  // buy start Time
 };
 
 // buy rule：越前面的越优先购买，前面的没货才购买后面
@@ -33,7 +33,7 @@ const buyRule = [
 ];
 
 function createSelector(type, index) {
-  return `#app > div.mi-detail > div > div > div > div.product-box.container > div.product-con > div.buy-option > div:nth-child(${type}) > div > ul > li:nth-child(${index}) > a'`
+  return `#app > div.mi-detail > div > div > div > div.product-box.container > div.product-con > div.buy-option > div:nth-child(${type}) > div > ul > li:nth-child(${index}) > a`
 }
 
 // 加入购物车选择器
@@ -64,19 +64,18 @@ const btnPrimary = '#app > div.mi-detail > div > div > div > div.product-box.con
   try {
     await page.waitForSelector('a.login', { timeout: 1000 })
     await page.click('a.login')
-    // await page.waitForNavigation()
   } catch (e) {
     console.log("已登录")
   }
 
   // panic buying core code
-  await refreshBuy(page) // 1. 真实开抢逻辑
-  // await page.waitForSelector(btnPrimary, { timeout: 2000 }) // 2. 模拟请打开这里
+  await refreshBuy(page)
 
   await page.click(btnPrimary)
   await page.waitForNavigation()
   await page.goto('https://static.mi.com/cart/') // go to cart
   await page.click("#J_goCheckout")
+  console.log("抢单成功")
 })();
 
 function sleep(ms, type) {
@@ -95,37 +94,26 @@ function sleep(ms, type) {
 }
 
 async function refreshBuy(page) {
-  // try {
+  try {
     await sleep(config.buyStartTime - Date.now(), true)
-    console.log("开启抢单")
+    console.log("选择型号中")
     await page.goto(config.buyPage)
-    // await page.waitForNavigation()
-    // await page.waitForSelector('div.buy-option', { timeout: 2000 })
     for (let i = 0; i < buyRule.length; i++) {
-      const { GB, color } = buyRule[i]
-      console.log("1111111:::", createSelector(GB.type, GB.index))
-      console.log("1111111:::", createSelector(color.type, color.index))
-      // const aaa = createSelector(GB.type, GB.index)
-      // const bbb = createSelector(color.type, color.index)
-      await page.evaluate(({ createSelector, buyRuleItem })=>{
-        const { GB, color } = buyRuleItem
-        document.querySelector(createSelector(GB.type, GB.index)).click()
-        document.querySelector(createSelector(color.type, color.index)).click()
-      }, {createSelector, buyRuleItem: buyRule[i]})
-      // const GBNode = await page.waitForSelector(createSelector(GB.type, GB.index))
-      // const colorNode = await page.waitForSelector(createSelector(color.type, color.index))
-      // GBNode.click()
-      // colorNode.click()
+      await page.evaluate(({ GB, color })=>{
+        document.querySelector('#app > div.mi-detail > div > div > div > div.product-box.container > div.product-con > div.buy-option > div:nth-child('+ GB.type +') > div > ul > li:nth-child('+ GB.index + ') > a').click()
+        document.querySelector('#app > div.mi-detail > div > div > div > div.product-box.container > div.product-con > div.buy-option > div:nth-child('+ color.type +') > div > ul > li:nth-child('+ color.index +') > a').click()
+      }, buyRule[i])
       try {
         await page.waitForSelector(btnPrimary, { timeout: 2000 })
-        console.log("抢单成功")
+        console.log("开启抢单")
         return
       } catch (e) {
         continue;
       }
     }
     await page.waitForSelector(btnPrimary, { timeout: 2000 })
-  // } catch (e) {
-  //   await refreshBuy()
-  // }
+  } catch (e) {
+    console.log("抢单错误，再次发起抢单！")
+    await refreshBuy()
+  }
 }
